@@ -20,7 +20,8 @@ IXAudio2MasteringVoice* masterVoice = nullptr;
 IXAudio2SourceVoice* sourceVoice = nullptr;
 WAVEFORMATEX waveFormat = {};
 
-IXAudio2SubmixVoice* submixVoice = nullptr;
+IXAudio2SubmixVoice* wetSubmix = nullptr;
+IXAudio2SubmixVoice* drySubmix = nullptr;
 XAUDIO2_BUFFER buffer;
 
 WAVLoader wavLoader;
@@ -49,15 +50,18 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 
 	// ---------------------サブミックス-----------------------------------------------
-	xaudio2->CreateSubmixVoice(&submixVoice, waveFormat.nChannels, waveFormat.nSamplesPerSec, XAUDIO2_VOICE_USEFILTER);
+	xaudio2->CreateSubmixVoice(&wetSubmix, waveFormat.nChannels, waveFormat.nSamplesPerSec, XAUDIO2_VOICE_USEFILTER);
+	xaudio2->CreateSubmixVoice(&drySubmix, waveFormat.nChannels, waveFormat.nSamplesPerSec, XAUDIO2_VOICE_USEFILTER);
 
-	XAUDIO2_SEND_DESCRIPTOR desc;
-	desc.Flags = 0;
-	desc.pOutputVoice = submixVoice;
-	XAUDIO2_VOICE_SENDS send = { 1, &desc };
+	XAUDIO2_SEND_DESCRIPTOR desc[2];
+	desc[0].Flags = 0;
+	desc[0].pOutputVoice = wetSubmix;
+	desc[1].Flags = 0;
+	desc[1].pOutputVoice = drySubmix;
+	XAUDIO2_VOICE_SENDS send = { 2, desc };
 
 	sourceVoice->SetOutputVoices(&send);
-	sourceVoice->SetVolume(0.7f);
+	sourceVoice->SetVolume(0.1f);
 	// --------------------------------------------------------------------------------
 
 	// ---------------------リバーブ---------------------------------------------------
@@ -75,9 +79,16 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	chain.EffectCount = 1;
 	chain.pEffectDescriptors = &effectDesc;
 
-	submixVoice->SetEffectChain(&chain);
+	wetSubmix->SetEffectChain(&chain);
 
 	reverb->Release();
+
+	XAUDIO2FX_REVERB_I3DL2_PARAMETERS i3dl2Param = XAUDIO2FX_I3DL2_PRESET_STONECORRIDOR;
+	XAUDIO2FX_REVERB_PARAMETERS revParam = {};
+	ReverbConvertI3DL2ToNative(&i3dl2Param, &revParam);
+
+	result = wetSubmix->SetEffectParameters(0, &revParam, sizeof(revParam));
+	assert(SUCCEEDED(result));
 	// --------------------------------------------------------------------------------
 	
 
@@ -101,11 +112,18 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	Volumes.resize(source.InputChannels * master.InputChannels, 0.0f);
 	Volumes[0] = 0.707f;
 	Volumes[source.InputChannels * master.InputChannels - 1] = 0.707f;
-	result = submixVoice->SetOutputMatrix(masterVoice, waveFormat.nChannels, master.InputChannels, Volumes.data());
+	result = wetSubmix->SetOutputMatrix(masterVoice, waveFormat.nChannels, master.InputChannels, Volumes.data());
+	result = drySubmix->SetOutputMatrix(masterVoice, waveFormat.nChannels, master.InputChannels, Volumes.data());
 	// --------------------------------------------------------------------------------
 
-	float currentAngle = 0.0f;
+	float currentAngle = M_PI / 4.0f;
+	float currentWetDry = 0.0f;
 	XAUDIO2_VOICE_STATE state;
+	{
+		float w = 0.6f * currentWetDry * currentWetDry;
+		wetSubmix->SetVolume(w);
+		drySubmix->SetVolume(1.0f - w);
+	}
 	while (!CheckHitKey(KEY_INPUT_ESCAPE) && DxLib::ProcessMessage() == 0)
 	{
 		ClsDrawScreen();
@@ -129,8 +147,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			//Volumes[1] = cosf(currentAngle);
 			//Volumes[2] = sinf(currentAngle);
 			Volumes[source.InputChannels * master.InputChannels - 1] = sinf(currentAngle);
-			result = submixVoice->SetOutputMatrix(masterVoice, waveFormat.nChannels, master.InputChannels, Volumes.data());
-		
+			result = wetSubmix->SetOutputMatrix(masterVoice, waveFormat.nChannels, master.InputChannels, Volumes.data());
+			result = drySubmix->SetOutputMatrix(masterVoice, waveFormat.nChannels, master.InputChannels, Volumes.data());
 		}
 		else if (GetAsyncKeyState(VK_RIGHT))
 		{
@@ -143,10 +161,35 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			//Volumes[1] = cosf(currentAngle);
 			//Volumes[2] = sinf(currentAngle);
 			Volumes[source.InputChannels * master.InputChannels - 1] = sinf(currentAngle);
-			result = submixVoice->SetOutputMatrix(masterVoice, waveFormat.nChannels, master.InputChannels, Volumes.data());
+			result = wetSubmix->SetOutputMatrix(masterVoice, waveFormat.nChannels, master.InputChannels, Volumes.data());
+			result = drySubmix->SetOutputMatrix(masterVoice, waveFormat.nChannels, master.InputChannels, Volumes.data());
 		}
 		// -------------------------------------------------------------------------
 
+		// -----------リバーブ調整--------------------------------------------------
+		if (GetAsyncKeyState(VK_UP))
+		{
+			currentWetDry += 0.01f;
+			if (currentWetDry > 1.0f)
+			{
+				currentWetDry = 1.0f;
+			}
+			float w = 0.6f * currentWetDry * currentWetDry;
+			wetSubmix->SetVolume(w);
+			drySubmix->SetVolume(1.0f - w);
+		}
+		else if (GetAsyncKeyState(VK_DOWN))
+		{
+			currentWetDry -= 0.01f;
+			if (currentWetDry < 0.0f)
+			{
+				currentWetDry = 0.0f;
+			}
+			float w = 0.6f * currentWetDry * currentWetDry;
+			wetSubmix->SetVolume(w);
+			drySubmix->SetVolume(1.0f - w);
+		}
+		// -------------------------------------------------------------------------
 
 		// -----------描画----------------------------------------------------------
 		DxLib::DrawBox(285, 430, 355, 450, 0xffffff, true);
@@ -156,14 +199,20 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		DxLib::DrawGraph(288.0f + cosf(M_PI - currentAngle * 2.0f) * 240.0f, 408.0f - sinf(currentAngle * 2.0f) * 240.0f,
 			image, true);
 
+		DxLib::DrawString(80.0f, 80.0f, L"Reverb Strength", 0x55ff55, 0xffffff);
+		DxLib::DrawBox(100.0f, 100.0f, 100.0f + currentWetDry * 200.0f, 120.0f, 0x00ff00, true);
+		DxLib::DrawBox(100.0f, 100.0f, 300.0f, 120.0f, 0xffffff, false);
+
 		DxLib::ScreenFlip();
 	}
 
 	if(sourceVoice != nullptr)
 	sourceVoice->DestroyVoice();
 
-	if (submixVoice != nullptr)
-		submixVoice->DestroyVoice();
+	if (wetSubmix != nullptr)
+		wetSubmix->DestroyVoice();
+	if (drySubmix != nullptr)
+		drySubmix->DestroyVoice();
 
 	XAudio2End();
 	DxLib::DxLib_End();
