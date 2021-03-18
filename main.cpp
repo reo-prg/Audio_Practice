@@ -61,7 +61,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	XAUDIO2_VOICE_SENDS send = { 2, desc };
 
 	sourceVoice->SetOutputVoices(&send);
-	sourceVoice->SetVolume(0.1f);
+
+	float currentVolume = 0.5f;
+	sourceVoice->SetVolume(currentVolume);
 	// --------------------------------------------------------------------------------
 
 	// ---------------------リバーブ---------------------------------------------------
@@ -91,6 +93,32 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	assert(SUCCEEDED(result));
 	// --------------------------------------------------------------------------------
 	
+	// ---------------------ボリュームメーター-----------------------------------------
+	IUnknown* volumeMeter;
+	result = XAudio2CreateVolumeMeter(&volumeMeter);
+	assert(SUCCEEDED(result));
+
+	XAUDIO2_EFFECT_DESCRIPTOR vmEffectDesc = {};
+	vmEffectDesc.InitialState = true;
+	vmEffectDesc.OutputChannels = master.InputChannels;
+	vmEffectDesc.pEffect = volumeMeter;
+
+	XAUDIO2_EFFECT_CHAIN vmChain = {};
+	vmChain.EffectCount = 1;
+	vmChain.pEffectDescriptors = &vmEffectDesc;
+
+	masterVoice->SetEffectChain(&vmChain);
+
+	volumeMeter->Release();
+
+	XAUDIO2FX_VOLUMEMETER_LEVELS vmLevel = {};
+	float PeakLevels[2];
+	float RMSLevels[2];
+
+	vmLevel.ChannelCount = master.InputChannels;
+	vmLevel.pPeakLevels = PeakLevels;
+	vmLevel.pRMSLevels = RMSLevels;
+	// --------------------------------------------------------------------------------
 
 	// ---------------------速度変更---------------------------------------------------
 	//sourceVoice->SetFrequencyRatio(2.0f);
@@ -127,6 +155,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	while (!CheckHitKey(KEY_INPUT_ESCAPE) && DxLib::ProcessMessage() == 0)
 	{
 		ClsDrawScreen();
+
+		masterVoice->GetEffectParameters(0, &vmLevel, sizeof(vmLevel));
 
 		// ----------------------キューのチェック---------------------------------
 		sourceVoice->GetState(&state, XAUDIO2_VOICE_NOSAMPLESPLAYED);
@@ -166,6 +196,26 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		}
 		// -------------------------------------------------------------------------
 
+		// -----------音量調整------------------------------------------------------
+		if (GetAsyncKeyState(0x57))
+		{
+			currentVolume += 0.01f;
+			if (currentVolume > 1.0f)
+			{
+				currentVolume = 1.0f;
+			}
+			sourceVoice->SetVolume(currentVolume);
+		}
+		else if (GetAsyncKeyState(0x53))
+		{
+			currentVolume -= 0.01f;
+			if (currentVolume < 0.0f)
+			{
+				currentVolume = 0.0f;
+			}
+			sourceVoice->SetVolume(currentVolume);
+		}
+		// -------------------------------------------------------------------------
 		// -----------リバーブ調整--------------------------------------------------
 		if (GetAsyncKeyState(VK_UP))
 		{
@@ -194,14 +244,33 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		// -----------描画----------------------------------------------------------
 		DxLib::DrawBox(285, 430, 355, 450, 0xffffff, true);
 		DxLib::DrawBox(290, 410, 350, 470, 0x4444ff, true);
-		DxLib::DrawCircle(320.0f + cosf(M_PI - currentAngle * 2.0f) * 240.0f, 440.0f - sinf(currentAngle * 2.0f) * 240.0f,
+		DxLib::DrawCircle(320.0f + cosf(M_PI - currentAngle * 2.0f) * 160.0f, 440.0f - sinf(currentAngle * 2.0f) * 240.0f,
 			40.0f, 0x880088, true);
-		DxLib::DrawGraph(288.0f + cosf(M_PI - currentAngle * 2.0f) * 240.0f, 408.0f - sinf(currentAngle * 2.0f) * 240.0f,
+		DxLib::DrawGraph(288.0f + cosf(M_PI - currentAngle * 2.0f) * 160.0f, 408.0f - sinf(currentAngle * 2.0f) * 240.0f,
 			image, true);
 
-		DxLib::DrawString(80.0f, 80.0f, L"Reverb Strength", 0x55ff55, 0xffffff);
-		DxLib::DrawBox(100.0f, 100.0f, 100.0f + currentWetDry * 200.0f, 120.0f, 0x00ff00, true);
-		DxLib::DrawBox(100.0f, 100.0f, 300.0f, 120.0f, 0xffffff, false);
+		DxLib::DrawString(40.0f, 40.0f, L"Volume", 0x8888ff, 0xffffff);
+		DxLib::DrawBox(60.0f, 60.0f, 60.0f + currentVolume * 200.0f, 80.0f, 0x00ff00, true);
+		DxLib::DrawBox(60.0f, 60.0f, 260.0f, 80.0f, 0xffffff, false);
+
+		DxLib::DrawString(40.0f, 80.0f, L"Reverb Strength", 0x55ff55, 0xffffff);
+		DxLib::DrawBox(60.0f, 100.0f, 60.0f + currentWetDry * 200.0f, 120.0f, 0x00ff00, true);
+		DxLib::DrawBox(60.0f, 100.0f, 260.0f, 120.0f, 0xffffff, false);
+
+		DxLib::DrawString(300.0f, 10.0f, (std::wstring(L"Left_Peak :  ") + std::to_wstring(vmLevel.pPeakLevels[0])).c_str(), 0xdd3344);
+		DxLib::DrawString(300.0f, 30.0f, (std::wstring(L"Right_Peak : ") + std::to_wstring(vmLevel.pPeakLevels[1])).c_str(), 0xdd3344);
+		DxLib::DrawString(300.0f, 50.0f, (std::wstring(L"Left_Avg :   ") + std::to_wstring(vmLevel.pRMSLevels[0])).c_str(), 0x33dd44);
+		DxLib::DrawString(300.0f, 70.0f, (std::wstring(L"Right_Avg :  ") + std::to_wstring(vmLevel.pRMSLevels[1])).c_str(), 0x33dd44);
+
+		DxLib::DrawBox(10.0f, 320.0f - vmLevel.pPeakLevels[0] * 100.0f, 25.0f, 320.0f, 0xdd3344, true);
+		DxLib::DrawBox(590.0f, 320.0f - vmLevel.pPeakLevels[1] * 100.0f, 605.0f, 320.0f, 0xdd3344, true);
+		DxLib::DrawBox(30.0f, 320.0f - vmLevel.pRMSLevels[0] * 100.0f, 45.0f, 320.0f, 0x33dd44, true);
+		DxLib::DrawBox(610.0f, 320.0f - vmLevel.pRMSLevels[1] * 100.0f, 625.0f, 320.0f, 0x33dd44, true);
+
+		DxLib::DrawBox(10.0f, 220.0f, 25.0f, 320.0f, 0xffffff, false);
+		DxLib::DrawBox(590.0f, 220.0f, 605.0f, 320.0f, 0xffffff, false);
+		DxLib::DrawBox(30.0f, 220.0f, 45.0f, 320.0f, 0xffffff, false);
+		DxLib::DrawBox(610.0f, 220.0f, 625.0f, 320.0f, 0xffffff, false);
 
 		DxLib::ScreenFlip();
 	}
