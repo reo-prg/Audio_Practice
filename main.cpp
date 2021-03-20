@@ -1,6 +1,8 @@
 #define XAUDIO2_HELPER_FUNCTIONS
 #include <DxLib.h>
 #include <xaudio2fx.h>
+#include <xapofx.h>
+#include <xapo.h>
 #include <memory>
 #define _USE_MATH_DEFINES
 #include <math.h>
@@ -44,7 +46,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	XAUDIO2_VOICE_DETAILS master = {};
 	masterVoice->GetVoiceDetails(&master);
-
+	
 	wavLoader.LoadWAVFile("Resource/Sound/Techno_1.wav");
 	PlayWAVFile("Resource/Sound/Techno_1.wav", &sourceVoice);
 
@@ -68,29 +70,29 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	// ---------------------リバーブ---------------------------------------------------
 	
-	IUnknown* reverb;
-	result = XAudio2CreateReverb(&reverb);
-	assert(SUCCEEDED(result));
+	//IUnknown* reverb;
+	//result = XAudio2CreateReverb(&reverb);
+	//assert(SUCCEEDED(result));
 
-	XAUDIO2_EFFECT_DESCRIPTOR effectDesc = {};
-	effectDesc.InitialState = true;
-	effectDesc.OutputChannels = waveFormat.nChannels;
-	effectDesc.pEffect = reverb;
+	//XAUDIO2_EFFECT_DESCRIPTOR effectDesc = {};
+	//effectDesc.InitialState = true;
+	//effectDesc.OutputChannels = waveFormat.nChannels;
+	//effectDesc.pEffect = reverb;
 
-	XAUDIO2_EFFECT_CHAIN chain = {};
-	chain.EffectCount = 1;
-	chain.pEffectDescriptors = &effectDesc;
+	//XAUDIO2_EFFECT_CHAIN chain = {};
+	//chain.EffectCount = 1;
+	//chain.pEffectDescriptors = &effectDesc;
 
-	wetSubmix->SetEffectChain(&chain);
+	//wetSubmix->SetEffectChain(&chain);
 
-	reverb->Release();
+	//reverb->Release();
 
-	XAUDIO2FX_REVERB_I3DL2_PARAMETERS i3dl2Param = XAUDIO2FX_I3DL2_PRESET_STONECORRIDOR;
-	XAUDIO2FX_REVERB_PARAMETERS revParam = {};
-	ReverbConvertI3DL2ToNative(&i3dl2Param, &revParam);
+	//XAUDIO2FX_REVERB_I3DL2_PARAMETERS i3dl2Param = XAUDIO2FX_I3DL2_PRESET_STONECORRIDOR;
+	//XAUDIO2FX_REVERB_PARAMETERS revParam = {};
+	//ReverbConvertI3DL2ToNative(&i3dl2Param, &revParam);
 
-	result = wetSubmix->SetEffectParameters(0, &revParam, sizeof(revParam));
-	assert(SUCCEEDED(result));
+	//result = wetSubmix->SetEffectParameters(0, &revParam, sizeof(revParam));
+	//assert(SUCCEEDED(result));
 	// --------------------------------------------------------------------------------
 	
 	// ---------------------ボリュームメーター-----------------------------------------
@@ -118,6 +120,33 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	vmLevel.ChannelCount = master.InputChannels;
 	vmLevel.pPeakLevels = PeakLevels;
 	vmLevel.pRMSLevels = RMSLevels;
+	// --------------------------------------------------------------------------------
+
+	// ---------------------エコー-----------------------------------------------------
+	IUnknown* echo;
+	result = CreateFX(__uuidof(FXEcho), &echo);
+	assert(SUCCEEDED(result));
+
+	XAUDIO2_EFFECT_DESCRIPTOR effectDesc = {};
+	effectDesc.InitialState = true;
+	effectDesc.OutputChannels = waveFormat.nChannels;
+	effectDesc.pEffect = echo;
+
+	XAUDIO2_EFFECT_CHAIN chain = {};
+	chain.EffectCount = 1;
+	chain.pEffectDescriptors = &effectDesc;
+
+	result = wetSubmix->SetEffectChain(&chain);
+	assert(SUCCEEDED(result));
+	echo->Release();
+
+	FXECHO_PARAMETERS echoParam = {};
+	echoParam.Delay = 350.0f;
+	echoParam.Feedback = FXECHO_DEFAULT_FEEDBACK;
+	echoParam.WetDryMix = FXECHO_MAX_WETDRYMIX;
+
+	result = wetSubmix->SetEffectParameters(0, &echoParam, sizeof(echoParam));
+	assert(SUCCEEDED(result));
 	// --------------------------------------------------------------------------------
 
 	// ---------------------速度変更---------------------------------------------------
