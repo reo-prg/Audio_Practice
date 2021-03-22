@@ -16,6 +16,8 @@ bool XAudio2Init(void);
 void XAudio2End(void);
 void PlayWAVFile(const std::string& filename, IXAudio2SourceVoice** sVoice);
 
+void ControlEqualizer(void);
+
 IXAudio2* xaudio2 = nullptr;
 IXAudio2MasteringVoice* masterVoice = nullptr;
 
@@ -28,10 +30,12 @@ XAUDIO2_BUFFER buffer;
 
 WAVLoader wavLoader;
 
+FXEQ_PARAMETERS eqParam = {};
+
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	SetOutApplicationLogValidFlag(false);
 	ChangeWindowMode(true);
-	SetGraphMode(640, 480, 32);
+	SetGraphMode(1080, 720, 32);
 	SetMainWindowText(_T("XAudio2Practice"));
 	DxLib_Init();
 	CoInitializeEx(nullptr, COINIT_MULTITHREADED);
@@ -123,29 +127,64 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	// --------------------------------------------------------------------------------
 
 	// ---------------------エコー-----------------------------------------------------
-	IUnknown* echo;
-	result = CreateFX(__uuidof(FXEcho), &echo);
+	//IUnknown* echo;
+	//result = CreateFX(__uuidof(FXEcho), &echo);
+	//assert(SUCCEEDED(result));
+
+	//XAUDIO2_EFFECT_DESCRIPTOR effectDesc = {};
+	//effectDesc.InitialState = true;
+	//effectDesc.OutputChannels = waveFormat.nChannels;
+	//effectDesc.pEffect = echo;
+
+	//XAUDIO2_EFFECT_CHAIN chain = {};
+	//chain.EffectCount = 1;
+	//chain.pEffectDescriptors = &effectDesc;
+
+	//result = wetSubmix->SetEffectChain(&chain);
+	//assert(SUCCEEDED(result));
+	//echo->Release();
+
+	//FXECHO_PARAMETERS echoParam = {};
+	//echoParam.Delay = 350.0f;
+	//echoParam.Feedback = FXECHO_DEFAULT_FEEDBACK;
+	//echoParam.WetDryMix = FXECHO_MAX_WETDRYMIX;
+
+	//result = wetSubmix->SetEffectParameters(0, &echoParam, sizeof(echoParam));
+	//assert(SUCCEEDED(result));
+	// --------------------------------------------------------------------------------
+
+	// ---------------------イコライザー-----------------------------------------------
+	IUnknown* eq;
+	result = CreateFX(CLSID_FXEQ, &eq);
 	assert(SUCCEEDED(result));
 
 	XAUDIO2_EFFECT_DESCRIPTOR effectDesc = {};
 	effectDesc.InitialState = true;
 	effectDesc.OutputChannels = waveFormat.nChannels;
-	effectDesc.pEffect = echo;
+	effectDesc.pEffect = eq;
 
 	XAUDIO2_EFFECT_CHAIN chain = {};
 	chain.EffectCount = 1;
 	chain.pEffectDescriptors = &effectDesc;
 
-	result = wetSubmix->SetEffectChain(&chain);
+	result = drySubmix->SetEffectChain(&chain);
 	assert(SUCCEEDED(result));
-	echo->Release();
+	eq->Release();
 
-	FXECHO_PARAMETERS echoParam = {};
-	echoParam.Delay = 350.0f;
-	echoParam.Feedback = FXECHO_DEFAULT_FEEDBACK;
-	echoParam.WetDryMix = FXECHO_MAX_WETDRYMIX;
+	eqParam.Bandwidth0 = FXEQ_DEFAULT_BANDWIDTH;
+	eqParam.Bandwidth1 = FXEQ_DEFAULT_BANDWIDTH;
+	eqParam.Bandwidth2 = FXEQ_DEFAULT_BANDWIDTH;
+	eqParam.Bandwidth3 = FXEQ_DEFAULT_BANDWIDTH;
+	eqParam.FrequencyCenter0 = FXEQ_DEFAULT_FREQUENCY_CENTER_0;
+	eqParam.FrequencyCenter1 = FXEQ_DEFAULT_FREQUENCY_CENTER_1;
+	eqParam.FrequencyCenter2 = FXEQ_DEFAULT_FREQUENCY_CENTER_2;
+	eqParam.FrequencyCenter3 = 7000.0f;
+	eqParam.Gain0 = FXEQ_DEFAULT_GAIN;
+	eqParam.Gain1 = FXEQ_DEFAULT_GAIN;
+	eqParam.Gain2 = FXEQ_DEFAULT_GAIN;
+	eqParam.Gain3 = FXEQ_DEFAULT_GAIN;
 
-	result = wetSubmix->SetEffectParameters(0, &echoParam, sizeof(echoParam));
+	result = drySubmix->SetEffectParameters(0, &eqParam, sizeof(eqParam));
 	assert(SUCCEEDED(result));
 	// --------------------------------------------------------------------------------
 
@@ -226,7 +265,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		// -------------------------------------------------------------------------
 
 		// -----------音量調整------------------------------------------------------
-		if (GetAsyncKeyState(0x57))
+		if (GetAsyncKeyState(0x51))
 		{
 			currentVolume += 0.01f;
 			if (currentVolume > 1.0f)
@@ -235,7 +274,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			}
 			sourceVoice->SetVolume(currentVolume);
 		}
-		else if (GetAsyncKeyState(0x53))
+		else if (GetAsyncKeyState(0x41))
 		{
 			currentVolume -= 0.01f;
 			if (currentVolume < 0.0f)
@@ -270,6 +309,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		}
 		// -------------------------------------------------------------------------
 
+		ControlEqualizer();
+
 		// -----------描画----------------------------------------------------------
 		DxLib::DrawBox(285, 430, 355, 450, 0xffffff, true);
 		DxLib::DrawBox(290, 410, 350, 470, 0x4444ff, true);
@@ -300,6 +341,26 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		DxLib::DrawBox(590.0f, 220.0f, 605.0f, 320.0f, 0xffffff, false);
 		DxLib::DrawBox(30.0f, 220.0f, 45.0f, 320.0f, 0xffffff, false);
 		DxLib::DrawBox(610.0f, 220.0f, 625.0f, 320.0f, 0xffffff, false);
+
+		DxLib::DrawLine(640, 0, 640, 480, 0x6666ff);
+		DxLib::DrawLine(0, 480, 640, 480, 0x6666ff);
+
+		// イコライザー
+		DxLib::DrawString(40, 490, std::to_wstring(static_cast<int>(eqParam.FrequencyCenter0)).c_str(), 0xffffff);
+		DxLib::DrawString(140, 490, std::to_wstring(static_cast<int>(eqParam.FrequencyCenter1)).c_str(), 0xffffff);
+		DxLib::DrawString(240, 490, std::to_wstring(static_cast<int>(eqParam.FrequencyCenter2)).c_str(), 0xffffff);
+		DxLib::DrawString(340, 490, std::to_wstring(static_cast<int>(eqParam.FrequencyCenter3)).c_str(), 0xffffff);
+
+		DxLib::DrawBox(55, 550, 65, 700, 0x555555, true);
+		DxLib::DrawBox(155, 550, 165, 700, 0x555555, true);
+		DxLib::DrawBox(255, 550, 265, 700, 0x555555, true);
+		DxLib::DrawBox(355, 550, 365, 700, 0x555555, true);
+
+		DxLib::DrawBox(45, 680 - (eqParam.Gain0 - FXEQ_MIN_GAIN) / (2.0f - FXEQ_MIN_GAIN) * 150.0f, 75, 720 - (eqParam.Gain0 - FXEQ_MIN_GAIN) / (2.0f - FXEQ_MIN_GAIN) * 150.0f, 0xccaa88, true);
+		DxLib::DrawBox(145, 680 - (eqParam.Gain1 - FXEQ_MIN_GAIN) / (2.0f - FXEQ_MIN_GAIN) * 150.0f, 175, 720 - (eqParam.Gain1 - FXEQ_MIN_GAIN) / (2.0f - FXEQ_MIN_GAIN) * 150.0f, 0xccaa88, true);
+		DxLib::DrawBox(245, 680 - (eqParam.Gain2 - FXEQ_MIN_GAIN) / (2.0f - FXEQ_MIN_GAIN) * 150.0f, 275, 720 - (eqParam.Gain2 - FXEQ_MIN_GAIN) / (2.0f - FXEQ_MIN_GAIN) * 150.0f, 0xccaa88, true);
+		DxLib::DrawBox(345, 680 - (eqParam.Gain3 - FXEQ_MIN_GAIN) / (2.0f - FXEQ_MIN_GAIN) * 150.0f, 375, 720 - (eqParam.Gain3 - FXEQ_MIN_GAIN) / (2.0f - FXEQ_MIN_GAIN) * 150.0f, 0xccaa88, true);
+
 
 		DxLib::ScreenFlip();
 	}
@@ -377,4 +438,88 @@ void PlayWAVFile(const std::string& filename, IXAudio2SourceVoice** sVoice)
 	if (FAILED(result)) { return; }
 
 	(*sVoice)->Start();
+}
+
+void ControlEqualizer(void)
+{
+	bool f = false;
+	if (GetAsyncKeyState(0x45))
+	{
+		eqParam.Gain0 += 0.02f;
+		if (eqParam.Gain0 > 2.0f)
+		{
+			eqParam.Gain0 = 2.0f;
+		}
+		f = true;
+	}
+	if (GetAsyncKeyState(0x44))
+	{
+		eqParam.Gain0 -= 0.02f;
+		if (eqParam.Gain0 < FXEQ_MIN_GAIN)
+		{
+			eqParam.Gain0 = FXEQ_MIN_GAIN;
+		}
+		f = true;
+	}
+	if (GetAsyncKeyState(0x52))
+	{
+		eqParam.Gain1 += 0.02f;
+		if (eqParam.Gain1 > 2.0f)
+		{
+			eqParam.Gain1 = 2.0f;
+		}
+		f = true;
+	}
+	if (GetAsyncKeyState(0x46))
+	{
+		eqParam.Gain1 -= 0.02f;
+		if (eqParam.Gain1 < FXEQ_MIN_GAIN)
+		{
+			eqParam.Gain1 = FXEQ_MIN_GAIN;
+		}
+		f = true;
+	}
+	if (GetAsyncKeyState(0x54))
+	{
+		eqParam.Gain2 += 0.02f;
+		if (eqParam.Gain2 > 2.0f)
+		{
+			eqParam.Gain2 = 2.0f;
+		}
+		f = true;
+	}
+	if (GetAsyncKeyState(0x47))
+	{
+		eqParam.Gain2 -= 0.02f;
+		if (eqParam.Gain2 < FXEQ_MIN_GAIN)
+		{
+			eqParam.Gain2 = FXEQ_MIN_GAIN;
+		}
+		f = true;
+	}
+	if (GetAsyncKeyState(0x59))
+	{
+		eqParam.Gain3 += 0.02f;
+		if (eqParam.Gain3 > 2.0f)
+		{
+			eqParam.Gain3 = 2.0f;
+		}
+		f = true;
+	}
+	if (GetAsyncKeyState(0x48))
+	{
+		eqParam.Gain3 -= 0.02f;
+		if (eqParam.Gain3 < FXEQ_MIN_GAIN)
+		{
+			eqParam.Gain3 = FXEQ_MIN_GAIN;
+		}
+		f = true;
+	}
+
+	if (f)
+	{
+		HRESULT result;
+		result = drySubmix->SetEffectParameters(0, &eqParam, sizeof(eqParam));
+		assert(SUCCEEDED(result));
+	}
 }
