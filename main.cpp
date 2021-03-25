@@ -10,7 +10,10 @@
 #include <vector>
 #include <cassert>
 
+#include "MyXAPO.h"
+
 #pragma comment(lib,"xaudio2.lib")
+#pragma comment(lib,"xapobase.lib")
 
 bool XAudio2Init(void);
 void XAudio2End(void);
@@ -154,14 +157,47 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	// --------------------------------------------------------------------------------
 
 	// ---------------------イコライザー-----------------------------------------------
-	IUnknown* eq;
-	result = CreateFX(CLSID_FXEQ, &eq);
-	assert(SUCCEEDED(result));
+	//IUnknown* eq;
+	//result = CreateFX(CLSID_FXEQ, &eq);
+	//assert(SUCCEEDED(result));
+
+	//XAUDIO2_EFFECT_DESCRIPTOR effectDesc = {};
+	//effectDesc.InitialState = true;
+	//effectDesc.OutputChannels = waveFormat.nChannels;
+	//effectDesc.pEffect = eq;
+
+	//XAUDIO2_EFFECT_CHAIN chain = {};
+	//chain.EffectCount = 1;
+	//chain.pEffectDescriptors = &effectDesc;
+
+	//result = drySubmix->SetEffectChain(&chain);
+	//assert(SUCCEEDED(result));
+	//eq->Release();
+
+	//eqParam.Bandwidth0 = FXEQ_DEFAULT_BANDWIDTH;
+	//eqParam.Bandwidth1 = FXEQ_DEFAULT_BANDWIDTH;
+	//eqParam.Bandwidth2 = FXEQ_DEFAULT_BANDWIDTH;
+	//eqParam.Bandwidth3 = FXEQ_DEFAULT_BANDWIDTH;
+	//eqParam.FrequencyCenter0 = FXEQ_DEFAULT_FREQUENCY_CENTER_0;
+	//eqParam.FrequencyCenter1 = FXEQ_DEFAULT_FREQUENCY_CENTER_1;
+	//eqParam.FrequencyCenter2 = FXEQ_DEFAULT_FREQUENCY_CENTER_2;
+	//eqParam.FrequencyCenter3 = 7000.0f;
+	//eqParam.Gain0 = FXEQ_DEFAULT_GAIN;
+	//eqParam.Gain1 = FXEQ_DEFAULT_GAIN;
+	//eqParam.Gain2 = FXEQ_DEFAULT_GAIN;
+	//eqParam.Gain3 = FXEQ_DEFAULT_GAIN;
+
+	//result = drySubmix->SetEffectParameters(0, &eqParam, sizeof(eqParam));
+	//assert(SUCCEEDED(result));
+	// --------------------------------------------------------------------------------
+
+	// ---------------------自作-------------------------------------------------------
+	IUnknown* myXapo = new MyXAPO();
 
 	XAUDIO2_EFFECT_DESCRIPTOR effectDesc = {};
 	effectDesc.InitialState = true;
 	effectDesc.OutputChannels = waveFormat.nChannels;
-	effectDesc.pEffect = eq;
+	effectDesc.pEffect = myXapo;
 
 	XAUDIO2_EFFECT_CHAIN chain = {};
 	chain.EffectCount = 1;
@@ -169,23 +205,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	result = drySubmix->SetEffectChain(&chain);
 	assert(SUCCEEDED(result));
-	eq->Release();
-
-	eqParam.Bandwidth0 = FXEQ_DEFAULT_BANDWIDTH;
-	eqParam.Bandwidth1 = FXEQ_DEFAULT_BANDWIDTH;
-	eqParam.Bandwidth2 = FXEQ_DEFAULT_BANDWIDTH;
-	eqParam.Bandwidth3 = FXEQ_DEFAULT_BANDWIDTH;
-	eqParam.FrequencyCenter0 = FXEQ_DEFAULT_FREQUENCY_CENTER_0;
-	eqParam.FrequencyCenter1 = FXEQ_DEFAULT_FREQUENCY_CENTER_1;
-	eqParam.FrequencyCenter2 = FXEQ_DEFAULT_FREQUENCY_CENTER_2;
-	eqParam.FrequencyCenter3 = 7000.0f;
-	eqParam.Gain0 = FXEQ_DEFAULT_GAIN;
-	eqParam.Gain1 = FXEQ_DEFAULT_GAIN;
-	eqParam.Gain2 = FXEQ_DEFAULT_GAIN;
-	eqParam.Gain3 = FXEQ_DEFAULT_GAIN;
-
-	result = drySubmix->SetEffectParameters(0, &eqParam, sizeof(eqParam));
-	assert(SUCCEEDED(result));
+	myXapo->Release();
 	// --------------------------------------------------------------------------------
 
 	// ---------------------速度変更---------------------------------------------------
@@ -309,7 +329,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		}
 		// -------------------------------------------------------------------------
 
-		ControlEqualizer();
 
 		// -----------描画----------------------------------------------------------
 		DxLib::DrawBox(285, 430, 355, 450, 0xffffff, true);
@@ -346,20 +365,20 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		DxLib::DrawLine(0, 480, 640, 480, 0x6666ff);
 
 		// イコライザー
-		DxLib::DrawString(40, 490, std::to_wstring(static_cast<int>(eqParam.FrequencyCenter0)).c_str(), 0xffffff);
-		DxLib::DrawString(140, 490, std::to_wstring(static_cast<int>(eqParam.FrequencyCenter1)).c_str(), 0xffffff);
-		DxLib::DrawString(240, 490, std::to_wstring(static_cast<int>(eqParam.FrequencyCenter2)).c_str(), 0xffffff);
-		DxLib::DrawString(340, 490, std::to_wstring(static_cast<int>(eqParam.FrequencyCenter3)).c_str(), 0xffffff);
+		//DxLib::DrawString(40, 490, std::to_wstring(static_cast<int>(eqParam.FrequencyCenter0)).c_str(), 0xffffff);
+		//DxLib::DrawString(140, 490, std::to_wstring(static_cast<int>(eqParam.FrequencyCenter1)).c_str(), 0xffffff);
+		//DxLib::DrawString(240, 490, std::to_wstring(static_cast<int>(eqParam.FrequencyCenter2)).c_str(), 0xffffff);
+		//DxLib::DrawString(340, 490, std::to_wstring(static_cast<int>(eqParam.FrequencyCenter3)).c_str(), 0xffffff);
 
-		DxLib::DrawBox(55, 550, 65, 700, 0x555555, true);
-		DxLib::DrawBox(155, 550, 165, 700, 0x555555, true);
-		DxLib::DrawBox(255, 550, 265, 700, 0x555555, true);
-		DxLib::DrawBox(355, 550, 365, 700, 0x555555, true);
+		//DxLib::DrawBox(55, 550, 65, 700, 0x555555, true);
+		//DxLib::DrawBox(155, 550, 165, 700, 0x555555, true);
+		//DxLib::DrawBox(255, 550, 265, 700, 0x555555, true);
+		//DxLib::DrawBox(355, 550, 365, 700, 0x555555, true);
 
-		DxLib::DrawBox(45, 680 - (eqParam.Gain0 - FXEQ_MIN_GAIN) / (2.0f - FXEQ_MIN_GAIN) * 150.0f, 75, 720 - (eqParam.Gain0 - FXEQ_MIN_GAIN) / (2.0f - FXEQ_MIN_GAIN) * 150.0f, 0xccaa88, true);
-		DxLib::DrawBox(145, 680 - (eqParam.Gain1 - FXEQ_MIN_GAIN) / (2.0f - FXEQ_MIN_GAIN) * 150.0f, 175, 720 - (eqParam.Gain1 - FXEQ_MIN_GAIN) / (2.0f - FXEQ_MIN_GAIN) * 150.0f, 0xccaa88, true);
-		DxLib::DrawBox(245, 680 - (eqParam.Gain2 - FXEQ_MIN_GAIN) / (2.0f - FXEQ_MIN_GAIN) * 150.0f, 275, 720 - (eqParam.Gain2 - FXEQ_MIN_GAIN) / (2.0f - FXEQ_MIN_GAIN) * 150.0f, 0xccaa88, true);
-		DxLib::DrawBox(345, 680 - (eqParam.Gain3 - FXEQ_MIN_GAIN) / (2.0f - FXEQ_MIN_GAIN) * 150.0f, 375, 720 - (eqParam.Gain3 - FXEQ_MIN_GAIN) / (2.0f - FXEQ_MIN_GAIN) * 150.0f, 0xccaa88, true);
+		//DxLib::DrawBox(45, 680 - (eqParam.Gain0 - FXEQ_MIN_GAIN) / (2.0f - FXEQ_MIN_GAIN) * 150.0f, 75, 720 - (eqParam.Gain0 - FXEQ_MIN_GAIN) / (2.0f - FXEQ_MIN_GAIN) * 150.0f, 0xccaa88, true);
+		//DxLib::DrawBox(145, 680 - (eqParam.Gain1 - FXEQ_MIN_GAIN) / (2.0f - FXEQ_MIN_GAIN) * 150.0f, 175, 720 - (eqParam.Gain1 - FXEQ_MIN_GAIN) / (2.0f - FXEQ_MIN_GAIN) * 150.0f, 0xccaa88, true);
+		//DxLib::DrawBox(245, 680 - (eqParam.Gain2 - FXEQ_MIN_GAIN) / (2.0f - FXEQ_MIN_GAIN) * 150.0f, 275, 720 - (eqParam.Gain2 - FXEQ_MIN_GAIN) / (2.0f - FXEQ_MIN_GAIN) * 150.0f, 0xccaa88, true);
+		//DxLib::DrawBox(345, 680 - (eqParam.Gain3 - FXEQ_MIN_GAIN) / (2.0f - FXEQ_MIN_GAIN) * 150.0f, 375, 720 - (eqParam.Gain3 - FXEQ_MIN_GAIN) / (2.0f - FXEQ_MIN_GAIN) * 150.0f, 0xccaa88, true);
 
 
 		DxLib::ScreenFlip();
