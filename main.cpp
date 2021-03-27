@@ -192,12 +192,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	// --------------------------------------------------------------------------------
 
 	// ---------------------é©çÏ-------------------------------------------------------
-	IUnknown* myXapo = new MyXAPO();
+	MyXAPO* myXapo = new MyXAPO();
 
 	XAUDIO2_EFFECT_DESCRIPTOR effectDesc = {};
 	effectDesc.InitialState = true;
 	effectDesc.OutputChannels = waveFormat.nChannels;
-	effectDesc.pEffect = myXapo;
+	effectDesc.pEffect = (IXAPOParameters*)myXapo;
 
 	XAUDIO2_EFFECT_CHAIN chain = {};
 	chain.EffectCount = 1;

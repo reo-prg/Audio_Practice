@@ -1,9 +1,17 @@
 #pragma once
+#include <xaudio2.h>
+#include <xapo.h>
 #include <xapobase.h>
 
+#define XAPO_PARAMETER_ELEMENTS_COUNT 3
+
+struct TestParameter
+{
+	float param_ = 0.0f;
+};
 
 class _declspec(uuid("{81023159-D858-40CB-A586-09CEAC89FFF7}")) MyXAPO :
-	public CXAPOBase
+	public CXAPOParametersBase
 {
 public:
 	MyXAPO();
@@ -19,9 +27,13 @@ public:
 		UINT32 OutputProcessParameterCount,
 		XAPO_PROCESS_BUFFER_PARAMETERS* pOutputProcessParameters,
 		BOOL IsEnabled)override;
+
+	STDMETHOD_(void, SetParameters)(const void* pParameters, UINT32 ParameterByteSize)override;
 private:
 	static XAPO_REGISTRATION_PROPERTIES registProp_;
 	WAVEFORMATEX input_;
 	WAVEFORMATEX output_;
+
+	TestParameter param_[XAPO_PARAMETER_ELEMENTS_COUNT];
 };
 

@@ -10,7 +10,7 @@ XAPO_REGISTRATION_PROPERTIES MyXAPO::registProp_ =
 	1, 1, 1, 1
 };
 
-MyXAPO::MyXAPO():CXAPOBase(&registProp_)
+MyXAPO::MyXAPO():CXAPOParametersBase(&registProp_, (BYTE*)(param_), sizeof(TestParameter), false)
 {
 }
 
@@ -23,7 +23,7 @@ MyXAPO::LockForProcess(UINT32 InputLockedParameterCount,
 	input_ = *pInputLockedParameters->pFormat;
 	output_ = *pOutputLockedParameters->pFormat;
 
-	return CXAPOBase::LockForProcess(InputLockedParameterCount,
+	return CXAPOParametersBase::LockForProcess(InputLockedParameterCount,
 		pInputLockedParameters, OutputLockedParameterCount, 
 		pOutputLockedParameters);
 }
@@ -35,6 +35,8 @@ MyXAPO::Process(UINT32 InputProcessParameterCount,
 	XAPO_PROCESS_BUFFER_PARAMETERS* pOutputProcessParameters, 
 	BOOL IsEnabled)
 {
+	TestParameter* param = (TestParameter*)BeginProcess();
+
 	const XAPO_PROCESS_BUFFER_PARAMETERS& inputPrm = pInputProcessParameters[0];
 	XAPO_PROCESS_BUFFER_PARAMETERS& outputPrm = pOutputProcessParameters[0];
 
@@ -42,4 +44,15 @@ MyXAPO::Process(UINT32 InputProcessParameterCount,
 
 	outputPrm.ValidFrameCount = inputPrm.ValidFrameCount;
 	outputPrm.BufferFlags = inputPrm.BufferFlags;
+
+	EndProcess();
+}
+
+STDMETHODIMP_(void __stdcall) 
+MyXAPO::SetParameters(const void* pParameters, UINT32 ParameterByteSize)
+{
+	if (ParameterByteSize == sizeof(TestParameter))
+	{
+		CXAPOParametersBase::SetParameters(pParameters, ParameterByteSize);
+	}
 }
