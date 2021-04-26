@@ -9,6 +9,8 @@
 #include "WAVLoader.h"
 #include <vector>
 #include <cassert>
+#include "Window/WindowsMng.h"
+#include "Window/DisplayException.h"
 
 #include "MyXAPO.h"
 
@@ -35,12 +37,19 @@ WAVLoader wavLoader;
 
 FXEQ_PARAMETERS eqParam = {};
 
+bool CreateMyWindow(LPCWSTR classname, LPCTSTR title, long windowWidth, long windowHeight);
+
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	SetOutApplicationLogValidFlag(false);
-	ChangeWindowMode(true);
-	SetGraphMode(1080, 720, 32);
-	SetMainWindowText(_T("XAudio2Practice"));
+	if (CreateMyWindow(L"main", L"WindowTitle", 1280, 720))
+	{
+		SetUserWindow(WinMngIns.GetWindowHandle(L"main"));
+	}
 	DxLib_Init();
+	SetDrawScreen(DX_SCREEN_BACK);
+
+
+	
 	CoInitializeEx(nullptr, COINIT_MULTITHREADED);
 	if (!XAudio2Init())
 	{
@@ -192,7 +201,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	// --------------------------------------------------------------------------------
 
 	// ---------------------Ž©ì-------------------------------------------------------
-	MyXAPO* myXapo = new MyXAPO();
+	ReceiveXAPO* myXapo = new ReceiveXAPO();
 
 	XAUDIO2_EFFECT_DESCRIPTOR effectDesc = {};
 	effectDesc.InitialState = true;
@@ -240,7 +249,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		wetSubmix->SetVolume(w);
 		drySubmix->SetVolume(1.0f - w);
 	}
-	while (!CheckHitKey(KEY_INPUT_ESCAPE) && DxLib::ProcessMessage() == 0)
+	while (!CheckHitKey(KEY_INPUT_ESCAPE) && WinMngIns.Update())
 	{
 		ClsDrawScreen();
 

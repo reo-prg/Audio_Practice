@@ -10,12 +10,12 @@ struct TestParameter
 	float param_ = 0.0f;
 };
 
-class _declspec(uuid("{81023159-D858-40CB-A586-09CEAC89FFF7}")) MyXAPO :
+class _declspec(uuid("{81023159-D858-40CB-A586-09CEAC89FFF7}")) ReceiveXAPO :
 	public CXAPOParametersBase
 {
 public:
-	MyXAPO();
-	~MyXAPO() {};
+	ReceiveXAPO();
+	~ReceiveXAPO() {};
 
 	STDMETHOD(LockForProcess)(UINT32 InputLockedParameterCount, 
 		const XAPO_LOCKFORPROCESS_BUFFER_PARAMETERS* pInputLockedParameters,
